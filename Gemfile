@@ -18,13 +18,20 @@ gem "tailwindcss-rails"
 # Background jobs (hold expiry, notifications) and job-backed Redis client.
 gem "sidekiq", "~> 7.0"
 gem "redis", "~> 5.0"
+# Pinned: sidekiq 7.3.x's scheduler thread calls its internal sleeper's
+# `pop` with a positional timeout arg, but connection_pool 3.0+ made `pop`
+# keyword-only (`pop(timeout: ...)`) — that mismatch crashes the scheduler
+# thread on boot (silently, as a WARN in the log) with
+# "ArgumentError: wrong number of arguments (given 1, expected 0)", which
+# means delayed jobs (like HoldExpiryJob's 5-minute wait) are enqueued fine
+# but NEVER get moved from the schedule into the ready queue. Root cause of
+# the "seats never become available after 5 minutes" bug. Sidekiq's own
+# Gemfile only requires connection_pool >= 2.3.0, so pinning to the last 2.x
+# release resolves it without needing a Sidekiq upgrade.
+gem "connection_pool", "~> 2.5"
 
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data", platforms: %i[ windows jruby ]
-
-# Use the database-backed adapters for Rails.cache and Active Job
-gem "solid_cache"
-gem "solid_queue"
 
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false

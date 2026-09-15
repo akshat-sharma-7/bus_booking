@@ -5,9 +5,13 @@ Rails.application.routes.draw do
   resources :passwords, param: :token
   resource :registration, only: %i[ new create ]
 
-  # Placeholder until Step 2/3 create TripsController — visiting "/" will
-  # 404 until then; /session/new and /registration/new work today.
-  # root "trips#index"
+  resources :trips, only: %i[ index show ] do
+    resources :holds, only: %i[ create show destroy ]
+  end
+
+  resources :bookings, only: %i[ create show ]
+
+  root "trips#index"
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
   # Can be used by load balancers and uptime monitors to verify that the app is live.

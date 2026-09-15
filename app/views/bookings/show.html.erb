@@ -1,0 +1,59 @@
+<% content_for :title, "Booking #{@booking.pnr} — Bus Booking" %>
+
+<div class="max-w-lg mx-auto">
+  <div class="text-center mb-4">
+    <div class="inline-flex items-center gap-2 text-green-600 font-medium">
+      <span class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">&#10003;</span>
+      Booking Confirmed
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+    <div class="bg-blue-600 text-white px-6 py-4 flex items-center justify-between">
+      <div>
+        <div class="text-xs uppercase tracking-wide text-blue-100">PNR</div>
+        <div class="text-xl font-bold"><%= @booking.pnr %></div>
+      </div>
+      <div class="text-right">
+        <div class="text-xs uppercase tracking-wide text-blue-100">Status</div>
+        <div class="text-xl font-bold"><%= @booking.status.titleize %></div>
+      </div>
+    </div>
+
+    <div class="p-6">
+      <div class="mb-4">
+        <div class="font-semibold text-lg"><%= @booking.trip.operator.name %></div>
+        <div class="text-sm text-amber-600">&#9733; <%= number_with_precision(@booking.trip.operator.rating, precision: 1) %> rating</div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-y-3 text-sm border-t border-b border-gray-100 py-4">
+        <div class="text-gray-500">Route</div>
+        <div class="text-right font-medium"><%= @booking.trip.from_city %> &rarr; <%= @booking.trip.to_city %></div>
+
+        <div class="text-gray-500">Travel date</div>
+        <div class="text-right font-medium"><%= @booking.trip.travel_date.strftime("%d %b %Y") %></div>
+
+        <div class="text-gray-500">Departure</div>
+        <div class="text-right font-medium"><%= @booking.trip.departure_time.strftime("%H:%M") %></div>
+
+        <div class="text-gray-500">Arrival</div>
+        <div class="text-right font-medium"><%= @booking.trip.arrival_time.strftime("%H:%M") %></div>
+
+        <div class="text-gray-500">Bus type</div>
+        <div class="text-right font-medium"><%= @booking.trip.bus_type.titleize %></div>
+
+        <div class="text-gray-500">Seats</div>
+        <div class="text-right font-medium"><%= @booking.booking_seats.map { |bs| bs.seat.seat_number }.sort.join(", ") %></div>
+      </div>
+
+      <div class="flex justify-between items-center pt-4">
+        <span class="text-gray-500 text-sm">Total paid</span>
+        <span class="text-2xl font-bold text-gray-900">&#8377;<%= number_with_precision(@booking.total_price, precision: 0) %></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-4 text-center">
+    <%= link_to "Search more trips", trips_path, class: "text-sm text-blue-600 hover:underline" %>
+  </div>
+</div>

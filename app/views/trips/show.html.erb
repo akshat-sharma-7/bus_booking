@@ -1,0 +1,100 @@
+<% content_for :title, "#{@trip.from_city} to #{@trip.to_city} — Bus Booking" %>
+
+<div class="max-w-4xl mx-auto">
+  <%= link_to "&larr; Back to search".html_safe, trips_path, class: "text-sm text-gray-500 hover:text-blue-600" %>
+
+  <div class="bg-white rounded-lg border border-gray-200 p-6 mt-4">
+    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div>
+        <h1 class="font-bold text-2xl"><%= @trip.operator.name %></h1>
+        <div class="mt-1 flex items-center gap-2 text-sm text-amber-600 font-medium">
+          &#9733; <%= number_with_precision(@trip.operator.rating, precision: 1) %> rating
+        </div>
+
+        <div class="mt-3 text-gray-700">
+          <div class="font-medium"><%= @trip.from_city %> &rarr; <%= @trip.to_city %></div>
+          <div class="text-sm text-gray-500">
+            <%= @trip.travel_date.strftime("%d %b %Y") %> &middot;
+            Departs <%= @trip.departure_time.strftime("%H:%M") %>, arrives <%= @trip.arrival_time.strftime("%H:%M") %>
+          </div>
+        </div>
+
+        <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <span class="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700"><%= @trip.bus_type.titleize %></span>
+          <% @trip.amenities.each do |amenity| %>
+            <span class="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700"><%= amenity.titleize %></span>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="text-right shrink-0">
+        <div class="text-3xl font-bold text-gray-900">&#8377;<%= number_with_precision(@trip.price, precision: 0) %></div>
+        <div class="text-sm text-gray-500">per seat</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg border border-gray-200 p-6 mt-4"
+       data-controller="seat-selection"
+       data-seat-selection-max-value="6"
+       data-seat-selection-price-value="<%= @trip.price %>">
+
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-semibold text-lg">Select your seats</h2>
+      <div class="flex items-center gap-4 text-xs text-gray-500">
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-white border border-gray-300 inline-block"></span> Available</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-blue-600 inline-block"></span> Selected</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-amber-300 inline-block"></span> Currently Unavailable</span>
+        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-gray-400 inline-block"></span> Booked</span>
+      </div>
+    </div>
+
+    <p data-seat-selection-target="limitWarning" class="hidden mb-3 text-sm text-red-600">
+      You can select at most 6 seats.
+    </p>
+
+    <%= form_with url: trip_holds_path(@trip), method: :post do %>
+      <div class="grid grid-cols-4 sm:grid-cols-8 gap-2 max-w-lg">
+        <% @seats.each do |seat| %>
+          <% if seat.available? %>
+            <label class="cursor-pointer">
+              <%= check_box_tag "seat_ids[]", seat.id, false,
+                    id: "seat_#{seat.id}", class: "hidden peer",
+                    data: { seat_selection_target: "checkbox", seat_number: seat.seat_number, action: "change->seat-selection#toggle" } %>
+              <span class="flex items-center justify-center h-10 rounded border border-gray-300 text-sm font-medium text-gray-700
+                           peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600 hover:border-blue-400">
+                <%= seat.seat_number %>
+              </span>
+            </label>
+          <% elsif seat.held? %>
+            <%# Internally this is Seat#held? (a temporary hold by another user), but
+                that word never reaches the UI — presented identically to any other
+                "can't pick this seat right now" reason. %>
+            <div class="flex items-center justify-center h-10 rounded bg-amber-300 text-sm font-medium text-amber-900 cursor-not-allowed" title="Currently unavailable">
+              <%= seat.seat_number %>
+            </div>
+          <% else %>
+            <div class="flex items-center justify-center h-10 rounded bg-gray-400 text-sm font-medium text-white cursor-not-allowed" title="Already booked">
+              <%= seat.seat_number %>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+
+      <div class="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-t border-gray-200 pt-4">
+        <div class="text-sm text-gray-600">
+          Selected (<span data-seat-selection-target="selectedCount">0/6</span>):
+          <span data-seat-selection-target="selectedList" class="font-medium text-gray-900">None selected</span>
+        </div>
+
+        <div class="flex items-center gap-4">
+          <div class="text-lg font-bold text-gray-900">
+            &#8377;<span data-seat-selection-target="totalPrice">0</span>
+          </div>
+          <%= submit_tag "Hold Seats", disabled: true, data: { seat_selection_target: "submit" },
+                class: "rounded-md px-4 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium cursor-pointer" %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>
