@@ -2,7 +2,7 @@ source "https://rubygems.org"
 
 ruby "3.3.6"
 
-gem "rails", "~> 8.0.5"
+gem "rails", "~> 8.1.3"
 
 # Asset pipeline — required for stylesheet_link_tag / javascript_importmap_tags
 # and to serve Tailwind's compiled CSS output (app/assets/builds).
