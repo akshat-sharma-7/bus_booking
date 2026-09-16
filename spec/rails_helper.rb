@@ -67,11 +67,19 @@ RSpec.configure do |config|
   config.include FactoryBot::Syntax::Methods
 
   config.before(:suite) do
-    DatabaseCleaner.strategy = :transaction
     DatabaseCleaner.clean_with(:truncation)
   end
 
+  # Real concurrency specs spawn threads that each grab their own DB
+  # connection to simulate two simultaneous requests — those connections
+  # can't see data created inside the default per-example transaction, so
+  # examples tagged `truncation: true` get real commits instead (standard
+  # DatabaseCleaner pattern for multi-connection tests). Strategy MUST be set
+  # inside this same around(:each) — a separate before(:each) runs too late,
+  # since around(:each) wraps before(:each) and DatabaseCleaner.cleaning
+  # calls .start with whatever strategy is set at that point.
   config.around(:each) do |example|
+    DatabaseCleaner.strategy = example.metadata[:truncation] ? :truncation : :transaction
     DatabaseCleaner.cleaning { example.run }
   end
 end
