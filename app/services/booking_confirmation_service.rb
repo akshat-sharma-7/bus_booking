@@ -58,17 +58,27 @@ class BookingConfirmationService
     success(booking)
   rescue Failure => e
     failure(e.message)
-  rescue AlreadyConfirmed, ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid
-    # Another request for this exact hold_group_id won the race and
-    # committed first — either we saw its "confirmed" holds under our own
-    # lock (AlreadyConfirmed) or its INSERT beat ours to the unique index
-    # (RecordNotUnique/RecordInvalid). Either way, the transaction that
-    # raised has already been rolled back and closed by Rails, so this query
-    # runs cleanly (not inside a poisoned transaction) and returns what the
-    # winner created — the caller sees success either way, per the
-    # idempotency requirement.
-    existing = find_existing_booking
-    existing ? success(existing) : failure("Could not confirm booking")
+  rescue AlreadyConfirmed
+    recover_from_lost_race
+  rescue ActiveRecord::RecordNotUnique => e
+    # Narrowed to the specific constraint that can legitimately race here —
+    # a blanket rescue would also swallow a RecordNotUnique from an unrelated
+    # bug (e.g. a stray duplicate BookingSeat) and misreport it as "someone
+    # else already booked it" instead of surfacing the real error.
+    raise unless e.message.include?("index_bookings_on_hold_group_id")
+
+    recover_from_lost_race
+  rescue ActiveRecord::RecordInvalid => e
+    # Same narrowing at the model-validation layer: only recover when this
+    # is specifically the Booking's hold_group_id uniqueness validation
+    # catching the race (belt-and-suspenders alongside the DB index above,
+    # since the app-level validation runs first and usually wins). Any other
+    # validation failure (bad price, missing trip, a genuine BookingSeat
+    # bug, ...) is a real error and must not be silently reinterpreted as a
+    # successful race recovery.
+    raise unless e.record.is_a?(Booking) && e.record.errors[:hold_group_id].present?
+
+    recover_from_lost_race
   end
 
   private
@@ -77,6 +87,19 @@ class BookingConfirmationService
 
   def find_existing_booking
     Booking.find_by(hold_group_id: hold_group_id, user: user)
+  end
+
+  # Another request for this exact hold_group_id won the race and committed
+  # first — either we saw its "confirmed" holds under our own lock
+  # (AlreadyConfirmed) or its INSERT beat ours to the unique index/validation
+  # (RecordNotUnique/RecordInvalid). Either way, the transaction that raised
+  # has already been rolled back and closed by Rails, so this query runs
+  # cleanly (not inside a poisoned transaction) and returns what the winner
+  # created — the caller sees success either way, per the idempotency
+  # requirement.
+  def recover_from_lost_race
+    existing = find_existing_booking
+    existing ? success(existing) : failure("Could not confirm booking")
   end
 
   def success(booking) = Result.new(success?: true, booking: booking)

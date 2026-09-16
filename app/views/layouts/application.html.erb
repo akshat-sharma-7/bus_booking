@@ -31,6 +31,7 @@
           <%= link_to "Search Trips", trips_path, class: "text-gray-700 hover:text-blue-600" %>
 
           <% if authenticated? %>
+            <%= link_to "My Bookings", bookings_path, class: "text-gray-700 hover:text-blue-600" %>
             <span class="text-gray-500"><%= Current.user.email_address %></span>
             <%= button_to "Sign out", session_path, method: :delete, class: "text-gray-700 hover:text-blue-600 cursor-pointer bg-transparent border-0 p-0 font-inherit" %>
           <% else %>

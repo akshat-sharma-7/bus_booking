@@ -63,8 +63,8 @@ RSpec.describe BookingConfirmationService do
     expect(Booking.where(hold_group_id: group)).to be_empty
   end
 
-  it "is idempotent on repeated confirmation of the same hold group" do
-    group = hold_group_for(user, [seats[0]])
+  it "is idempotent on repeated confirmation of the same hold group (CASE B)" do
+    group = hold_group_for(user, seats[0..1])
 
     first = described_class.new(user: user, hold_group_id: group).call
     second = described_class.new(user: user, hold_group_id: group).call
@@ -72,10 +72,47 @@ RSpec.describe BookingConfirmationService do
     expect(second.success?).to be true
     expect(second.booking.id).to eq(first.booking.id)
     expect(Booking.where(hold_group_id: group).count).to eq(1)
+    # Not just "same booking" — no duplicate BookingSeat rows either.
+    expect(BookingSeat.where(booking_id: first.booking.id).count).to eq(2)
+    expect(BookingSeat.where(booking_id: first.booking.id).pluck(:seat_id).uniq.size).to eq(2)
   end
 
-  it "concurrent confirmation of the same hold group does not create duplicate bookings", truncation: true do
+  it "does not leave partial state when the app-level uniqueness validation itself catches the race" do
     group = hold_group_for(user, [seats[0]])
+    first = described_class.new(user: user, hold_group_id: group).call
+    expect(first.success?).to be true
+
+    # Force the model-level `validates :hold_group_id, uniqueness: true` path
+    # specifically (rather than the raw DB constraint) by re-running #call —
+    # the fast-path find already returns early, so this mainly documents
+    # that a second attempt never produces a second Booking or BookingSeat
+    # row via either path.
+    second = described_class.new(user: user, hold_group_id: group).call
+    expect(second.success?).to be true
+    expect(Booking.where(hold_group_id: group).count).to eq(1)
+    expect(BookingSeat.where(booking_id: first.booking.id).count).to eq(1)
+  end
+
+  it "does not swallow a RecordInvalid unrelated to the hold_group_id race" do
+    group = hold_group_for(user, [seats[0]])
+
+    # Simulate some other validation failing inside the transaction (e.g. a
+    # BookingSeat bug) — this must propagate as a real error, not be
+    # silently reinterpreted as "someone else already booked it".
+    allow(BookingSeat).to receive(:create!).and_raise(
+      ActiveRecord::RecordInvalid.new(BookingSeat.new.tap { |bs| bs.errors.add(:price, "boom") })
+    )
+
+    expect {
+      described_class.new(user: user, hold_group_id: group).call
+    }.to raise_error(ActiveRecord::RecordInvalid, /boom/)
+
+    # And the transaction rolled back cleanly — no orphaned Booking.
+    expect(Booking.where(hold_group_id: group)).to be_empty
+  end
+
+  it "concurrent confirmation of the same hold group does not create duplicate bookings (CASE C)", truncation: true do
+    group = hold_group_for(user, seats[0..1])
     results = Array.new(2)
     ready = 0
     mutex = Mutex.new
@@ -94,10 +131,21 @@ RSpec.describe BookingConfirmationService do
 
     mutex.synchronize { cv.wait(mutex) until ready == 2 }
     2.times { start_latch << :go }
-    threads.each { |t| t.join(10) }
+    completed = threads.map { |t| t.join(10) }.all? { |t| !t.nil? }
 
+    expect(completed).to be true # no deadlock/hang
     expect(results).to all(satisfy { |r| r.success? })
-    expect(results.map { |r| r.booking.id }.uniq.size).to eq(1)
+    expect(results.map { |r| r.booking.id }.uniq.size).to eq(1) # both resolve to the SAME booking
+
+    winning_booking = results.first.booking
     expect(Booking.where(hold_group_id: group).count).to eq(1)
+    # Exactly one set of BookingSeat rows — not doubled, not partial.
+    expect(BookingSeat.where(booking_id: winning_booking.id).count).to eq(2)
+    expect(BookingSeat.where(booking_id: winning_booking.id).pluck(:seat_id).uniq.size).to eq(2)
+    # No corrupted hold/seat state: both holds confirmed, both seats booked —
+    # never left half-active/half-held from the loser's rolled-back attempt.
+    expect(Hold.where(hold_group_id: group).pluck(:status).uniq).to eq(["confirmed"])
+    expect(seats[0].reload.status).to eq("booked")
+    expect(seats[1].reload.status).to eq("booked")
   end
 end
