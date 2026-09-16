@@ -9,7 +9,13 @@ Rails.application.routes.draw do
     resources :holds, only: %i[ create show destroy ]
   end
 
-  resources :bookings, only: %i[ create show ]
+  resources :bookings, only: %i[ index create show ] do
+    member do
+      get  :reschedule, action: :reschedule_form
+      post :reschedule
+      post :cancel
+    end
+  end
 
   root "trips#index"
 

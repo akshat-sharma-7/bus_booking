@@ -86,7 +86,15 @@ User ──< Hold ──────────┤   (many Holds, one per seat,
 | `GET` | `/trips/:id/holds/:hold_group_id` | yes | Hold countdown / confirm screen (`#show`) |
 | `DELETE` | `/trips/:id/holds/:hold_group_id` | yes | Cancel the hold, releasing its seats immediately (`#destroy`) |
 | `POST` | `/bookings` | yes | Confirm a hold group → booking (`BookingsController#create`) |
-| `GET` | `/bookings/:id` | yes | Ticket-style confirmation page (`#show`) |
+| `GET` | `/bookings` | yes | My Bookings — the current user's own bookings (`#index`) |
+| `GET` | `/bookings/:id` | yes | Ticket-style booking detail — confirmed/cancelled/rescheduled (`#show`) |
+| `GET` | `/bookings/:id/reschedule` | yes | Target-trip picker for rescheduling (`#reschedule_form`) |
+| `POST` | `/bookings/:id/reschedule` | yes | Reschedule to the chosen trip (`#reschedule`) |
+| `POST` | `/bookings/:id/cancel` | yes | Cancel a confirmed booking (`#cancel`) |
+
+A nonexistent or deleted record on any `:id`/`:hold_group_id` route (a deleted Trip, a
+booking that isn't yours, ...) redirects to the search page with a flash message instead
+of Rails' raw exception page (`ApplicationController` `rescue_from ActiveRecord::RecordNotFound`).
 
 ## UI Flow
 
@@ -97,6 +105,14 @@ shows "Booked" — select up to 6) → Hold Seats (5-minute countdown, backend-a
 the JS timer is cosmetic only and reloads the page from the server when it hits zero) →
 either **Continue to Booking** or **Cancel Hold** (releases the seats immediately, no
 waiting for the timer) → Booking Confirmation (PNR, route, timing, seats, total).
+
+From there: **My Bookings** lists every booking the signed-in user has made, each showing
+View always, and Reschedule/Cancel only while the booking is still `confirmed`.
+**Reschedule** picks a same-route/same-operator trip on a different date; the seat count
+carries over, the original booking becomes `rescheduled` and links to its replacement.
+**Cancel** is allowed up to exactly 1 hour before departure and shows the ₹50 flat
+cancellation fee and calculated refund on the booking page (no payment gateway is
+integrated, so nothing is actually charged or paid out — see IMPLEMENTATION_NOTES.md).
 
 ## 4. Local Setup
 
@@ -179,7 +195,7 @@ docker compose down -v        # stop and also wipe the postgres volume
 bundle exec rspec
 ```
 
-46 examples covering trip search (every filter, including Today/Tomorrow/arbitrary-date and recurring-schedule lookups), seat holding (single/multiple/max-6/reject-7/reject-unavailable/reject-cross-trip, all-or-nothing rollback verified), hold expiry (`HoldExpiryService`, idempotent, leaves confirmed/cancelled holds alone), Cancel Hold (ownership, idempotency, doesn't corrupt a confirmed or already-expired hold), booking confirmation (idempotent repeat, wrong-user rejection, expired/cancelled-hold rejection), and the seat map's rendered wording. Uses the `test` database configured the same way as `development` (see the env-var note above); `RAILS_ENV=test` forces the `:test` ActiveJob adapter so background jobs run inline instead of touching real Sidekiq/Redis.
+79 examples covering trip search (every filter, including Today/Tomorrow/arbitrary-date and recurring-schedule lookups), seat holding (single/multiple/max-6/reject-7/reject-unavailable/reject-cross-trip, all-or-nothing rollback verified), hold expiry (`HoldExpiryService`, idempotent, leaves confirmed/cancelled holds alone), Cancel Hold (ownership, idempotency, doesn't corrupt a confirmed or already-expired hold), booking confirmation (idempotent repeat, wrong-user rejection, expired/cancelled-hold rejection), rescheduling (route/operator/seat-count validation, idempotent, concurrency-safe, full-rollback-on-failure), cancellation (the 1-hour rule at its exact boundary, the ₹50-once-per-booking fee, idempotency, concurrency-safety, rollback), My Bookings/Booking Detail authorization, and missing-record handling. Uses the `test` database configured the same way as `development` (see the env-var note above); `RAILS_ENV=test` forces the `:test` ActiveJob adapter so background jobs run inline instead of touching real Sidekiq/Redis.
 
 Most examples run inside a DatabaseCleaner-managed transaction (fast, isolated). The concurrency specs (two users racing for the same seat, two users confirming the same hold group simultaneously, deadlock-avoidance under reverse-order locking, expiry-vs-confirmation, cancel-vs-expiry) genuinely spawn threads with independent DB connections — those are tagged `truncation: true` and use real commits instead, since a spawned thread's connection can't see another connection's uncommitted transaction. These are not mocked: they exercise the actual `SELECT ... FOR UPDATE` locking and unique-index behavior against Postgres.
 
@@ -192,3 +208,7 @@ Most examples run inside a DatabaseCleaner-managed transaction (fast, isolated).
 - **Cancel Hold** — releases a hold (and its seats) immediately, without waiting for the 5-minute timer; safe to click more than once, and safe even if the hold already expired or was already confirmed elsewhere.
 - **Idempotent booking confirmation** — refreshing, double-submitting, or two concurrent confirm requests for the same hold group all converge on exactly one booking.
 - **Booking confirmation page** — PNR, operator, route, timing, seats, and total, styled as an actual ticket rather than raw JSON.
+- **My Bookings** — every booking the signed-in user has made, with the status-appropriate actions (View always; Reschedule/Cancel only while `confirmed`).
+- **Reschedule** — move a confirmed booking to a different date/time on the same route and operator, keeping the same seat count; the original booking becomes `rescheduled` and links to its replacement. Concurrency-safe and rollback-safe the same way booking confirmation is.
+- **Cancellation** — allowed up to exactly 1 hour before departure; shows the flat ₹50 cancellation fee and the calculated refund (`total_price - ₹50`) on the booking page. No payment gateway is integrated, so this is a calculated figure only — nothing is actually charged or refunded anywhere.
+- **Friendly missing-record handling** — a deleted Trip, or a Booking that isn't yours, redirects to the search page with a message instead of showing Rails' raw exception page.

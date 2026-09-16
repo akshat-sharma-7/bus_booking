@@ -1,0 +1,56 @@
+<% content_for :title, "My Bookings — Bus Booking" %>
+
+<div class="max-w-3xl mx-auto">
+  <h1 class="font-bold text-2xl mb-6">My Bookings</h1>
+
+  <% if @bookings.empty? %>
+    <div class="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
+      You don't have any bookings yet.
+      <%= link_to "Search trips", trips_path, class: "text-blue-600 hover:underline" %>
+    </div>
+  <% else %>
+    <div class="space-y-4">
+      <% @bookings.each do |booking| %>
+        <div class="bg-white rounded-lg border border-gray-200 p-5">
+          <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-semibold"><%= booking.trip.operator.name %></span>
+                <span class="px-2 py-0.5 rounded-full text-xs font-medium
+                  <%= case booking.status
+                      when "confirmed" then "bg-green-50 text-green-700"
+                      when "cancelled" then "bg-red-50 text-red-700"
+                      else "bg-gray-100 text-gray-700"
+                      end %>">
+                  <%= booking.status.titleize %>
+                </span>
+              </div>
+
+              <div class="mt-1 text-sm text-gray-600">
+                <%= booking.trip.from_city %> &rarr; <%= booking.trip.to_city %> &middot;
+                <%= booking.trip.travel_date.strftime("%d %b %Y") %>, <%= booking.trip.departure_time.strftime("%H:%M") %>
+              </div>
+
+              <div class="mt-1 text-sm text-gray-500">
+                PNR <span class="font-medium text-gray-700"><%= booking.pnr %></span> &middot;
+                <%= pluralize(booking.booking_seats.size, "seat") %>
+                (<%= booking.booking_seats.map { |bs| bs.seat.seat_number }.sort.join(", ") %>) &middot;
+                &#8377;<%= number_with_precision(booking.total_price, precision: 0) %>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 shrink-0 text-sm">
+              <%= link_to "View", booking_path(booking), class: "text-blue-600 hover:underline" %>
+              <% if booking.confirmed? %>
+                <%= link_to "Reschedule", reschedule_booking_path(booking), class: "text-blue-600 hover:underline" %>
+                <%= button_to "Cancel", cancel_booking_path(booking), method: :post,
+                      form: { data: { turbo_confirm: "Cancel this booking? A ₹#{Booking::CANCELLATION_FEE} fee applies." } },
+                      class: "text-red-600 hover:underline bg-transparent border-0 p-0 cursor-pointer font-inherit text-sm" %>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</div>
