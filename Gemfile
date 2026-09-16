@@ -17,7 +17,7 @@ gem "tailwindcss-rails"
 
 # Background jobs (hold expiry, notifications) and job-backed Redis client.
 gem "sidekiq", "~> 7.0"
-gem "redis", "~> 5.0"
+gem "redis", "~> 6.0"
 # Pinned: sidekiq 7.3.x's scheduler thread calls its internal sleeper's
 # `pop` with a positional timeout arg, but connection_pool 3.0+ made `pop`
 # keyword-only (`pop(timeout: ...)`) — that mismatch crashes the scheduler
