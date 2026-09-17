@@ -25,8 +25,6 @@ Rails.application.configure do
     config.action_controller.perform_caching = false
   end
 
-  # Redis-backed so cached trip search results are visible to Sidekiq
-  # workers too (e.g. HoldExpiryJob invalidating a cached search). Uses
   # DB 1, kept separate from Sidekiq's own DB 0 queue storage so flushing
   # one doesn't wipe the other.
   config.cache_store = :redis_cache_store, {

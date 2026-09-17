@@ -4,16 +4,27 @@
   <aside class="lg:w-72 shrink-0">
     <%= form_with url: trips_path, method: :get, class: "bg-white rounded-lg border border-gray-200 p-5 space-y-4",
           data: { controller: "date-quick-pick" } do |form| %>
+      <%# Native <input list> + <datalist> — type freely or pick from the
+          suggestions, no JS framework needed. Cities come from @cities (the
+          same real-trip-data-backed list the old <select> used); a typed
+          value that matches nothing just yields zero search results (the
+          route scope is a plain WHERE, never raises). %>
+      <datalist id="city_options">
+        <% @cities.each { |city| %><option value="<%= city %>"><% } %>
+      </datalist>
+
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">From</label>
-        <%= form.select :from_city, options_for_select([["Select city", ""]] + @cities, @search_params[:from_city]),
-              {}, class: "block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-blue-600" %>
+        <%= form.text_field :from_city, value: @search_params[:from_city], list: "city_options",
+              placeholder: "Type or select a city", autocomplete: "off",
+              class: "block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-blue-600" %>
       </div>
 
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">To</label>
-        <%= form.select :to_city, options_for_select([["Select city", ""]] + @cities, @search_params[:to_city]),
-              {}, class: "block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-blue-600" %>
+        <%= form.text_field :to_city, value: @search_params[:to_city], list: "city_options",
+              placeholder: "Type or select a city", autocomplete: "off",
+              class: "block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-blue-600" %>
       </div>
 
       <div>

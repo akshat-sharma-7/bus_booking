@@ -24,6 +24,30 @@ RSpec.describe "Trips", type: :request do
 
       expect(response).to have_http_status(:ok)
     end
+
+    it "renders From/To as free-text inputs offering a datalist, not a locked <select>" do
+      get trips_path
+
+      expect(response.body).to include('list="city_options"')
+      expect(response.body).to include('<datalist id="city_options">')
+      expect(response.body).not_to match(/<select[^>]*name="from_city"/)
+      expect(response.body).not_to match(/<select[^>]*name="to_city"/)
+    end
+
+    it "returns matching results for a typed (not selected) city value" do
+      trip = create(:trip, from_city: "Pune", to_city: "Mumbai")
+
+      get trips_path, params: { from_city: "Pune", to_city: "Mumbai" }
+
+      expect(response.body).to include(trip.operator.name)
+    end
+
+    it "does not raise for a city that doesn't match any trip" do
+      get trips_path, params: { from_city: "Nowhereville", to_city: "Notarealplace" }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("0 trips found")
+    end
   end
 
   describe "GET /trips/:id seat map wording" do
@@ -56,6 +80,13 @@ RSpec.describe "Trips", type: :request do
       expect(response.body).to include(%(id="seat_#{available_seat.id}"))
       expect(response.body).not_to include(%(id="seat_#{held_seat.id}"))
       expect(response.body).not_to include(%(id="seat_#{booked_seat.id}"))
+    end
+
+    it 'labels the seat-selection submit button "Continue to Booking"' do
+      get trip_path(trip)
+
+      expect(response.body).to include('value="Continue to Booking"')
+      expect(response.body).not_to include('value="Hold Seats"')
     end
   end
 end

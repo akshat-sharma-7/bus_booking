@@ -18,10 +18,6 @@ class TripsController < ApplicationController
 
   private
 
-  # The fixed POPULAR_CITIES list, unioned with whatever cities actually
-  # have trips right now — so the dropdown always includes the named
-  # examples (even on a fresh DB) without ever hiding a real, searchable
-  # route whose cities happen to fall outside that fixed list.
   def popular_cities
     (Trip::POPULAR_CITIES + Trip.distinct.pluck(:from_city) + Trip.distinct.pluck(:to_city)).uniq.sort
   end

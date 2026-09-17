@@ -29,7 +29,7 @@ class TripSearchService
   end
 
   def cache_key
-    "trip_search/v1/#{normalized_params.to_a.sort.hash}"
+    "trip_search/v1/#{Digest::MD5.hexdigest(normalized_params.to_a.sort.inspect)}"
   end
 
   def matching_trips
