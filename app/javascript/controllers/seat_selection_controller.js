@@ -1,10 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
 
-// Client-side seat selection: enforces the 6-seat max, tracks a running
-// total, and enables/disables the "Hold seats" submit button. This is a
-// convenience only — the backend re-validates everything (seat availability,
-// max 6, trip ownership) inside a locked transaction regardless of what this
-// controller allows through.
 export default class extends Controller {
   static targets = ["checkbox", "selectedCount", "selectedList", "totalPrice", "submit", "limitWarning"]
   static values = { max: Number, price: Number }

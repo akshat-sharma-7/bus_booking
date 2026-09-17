@@ -43,7 +43,7 @@
 
         <%= form_with url: bookings_path, method: :post, class: "space-y-2" do %>
           <%= hidden_field_tag :hold_group_id, @hold_group_id %>
-          <%= submit_tag "Continue to Booking", data: { hold_countdown_target: "confirmButton" },
+          <%= submit_tag "Confirm Booking", data: { hold_countdown_target: "confirmButton" },
                 class: "w-full rounded-md px-4 py-2.5 bg-green-600 hover:bg-green-500 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium cursor-pointer" %>
         <% end %>
 

@@ -1,8 +1,7 @@
 # PostgreSQL configuration.
 #
-# Connection is driven entirely by environment variables so the SAME file
-# works for local development and for the Docker Compose setup used by
-# evaluators — no manual editing/commenting required:
+# Connection is driven entirely by environment variables — no manual
+# editing/commenting required:
 #
 #   Local dev (no env vars set): host/port/username/password are all nil,
 #     so the pg gem connects over the unix domain socket using the OS
@@ -10,11 +9,9 @@
 #     password for any TCP connection but has passwordless peer auth
 #     configured on the socket, so this is the zero-config path.
 #
-#   Docker (see docker-compose.yml): export DB_HOST=localhost DB_PORT=5433
-#     DB_USERNAME=bus_booking DB_PASSWORD=password before running rails
-#     commands — see README "Docker Setup" for the exact export line.
-#     This forces a TCP connection to the containerized Postgres instead
-#     of the local socket.
+#   Docker (see docker-compose.yml): export DB_HOST/DB_PORT/DB_USERNAME/
+#     DB_PASSWORD before running rails commands to force a TCP connection
+#     to the containerized Postgres instead of the local socket.
 default: &default
   adapter: postgresql
   encoding: unicode

@@ -161,35 +161,7 @@ bin/rails server                             # or: bin/dev
 
 App runs at **http://localhost:3000**. Redis is expected at `redis://localhost:6379` (DB 0 for Sidekiq, DB 1 for the cache — see `REDIS_URL` / `REDIS_CACHE_URL` if you need to point elsewhere).
 
-## 5. Docker Setup (for evaluators)
-
-`docker-compose.yml` starts **Postgres and Redis only** (on offset ports `5433`/`6380` so they don't collide with anything already running locally) — the Rails app itself still runs on your host machine, connecting into those containers.
-
-**Prerequisites:** Docker Desktop (or Docker Engine + Compose) installed. Ruby 3.3.6 and Bundler still need to be installed locally, same as the Local Setup section above — Docker here replaces only the database and cache services.
-
-```bash
-docker compose up -d          # starts postgres:5433, redis:6380
-
-bundle install
-
-export DB_HOST=localhost DB_PORT=5433 DB_USERNAME=bus_booking DB_PASSWORD=password
-export REDIS_URL=redis://localhost:6380/0
-export REDIS_CACHE_URL=redis://localhost:6380/1
-
-bin/rails db:create db:migrate db:seed
-
-bundle exec sidekiq -C config/sidekiq.yml   # separate terminal, same exports in scope
-bin/rails server                             # or: bin/dev
-```
-
-Those `export` lines only need to be set in whichever shell(s) you run `rails`/`sidekiq` commands from — `config/database.yml` and the Sidekiq/cache initializers pick them up automatically; no file needs editing.
-
-```bash
-docker compose down           # stop the containers
-docker compose down -v        # stop and also wipe the postgres volume
-```
-
-## 6. Running Tests
+## 5. Running Tests
 
 ```bash
 bundle exec rspec
@@ -199,7 +171,7 @@ bundle exec rspec
 
 Most examples run inside a DatabaseCleaner-managed transaction (fast, isolated). The concurrency specs (two users racing for the same seat, two users confirming the same hold group simultaneously, deadlock-avoidance under reverse-order locking, expiry-vs-confirmation, cancel-vs-expiry) genuinely spawn threads with independent DB connections — those are tagged `truncation: true` and use real commits instead, since a spawned thread's connection can't see another connection's uncommitted transaction. These are not mocked: they exercise the actual `SELECT ... FOR UPDATE` locking and unique-index behavior against Postgres.
 
-## 7. Key Features
+## 6. Key Features
 
 - **Auth** — email + password signup/login via Rails 8's built-in `has_secure_password` + database-backed sessions (no Devise).
 - **Trip search & filters** — From/To city dropdowns, Today/Tomorrow/Select Date quick-pick, operator rating, price range, bus type, amenities; results show live available-seat counts.

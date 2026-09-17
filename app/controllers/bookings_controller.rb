@@ -30,7 +30,6 @@ class BookingsController < ApplicationController
                          .order(:departure_time)
   end
 
-  # POST — the actual submit.
   def reschedule
     booking = Current.user.bookings.find(params[:id])
     result = RescheduleBookingService.new(user: Current.user, booking: booking, target_trip_id: params[:trip_id]).call

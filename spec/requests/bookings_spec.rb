@@ -119,6 +119,51 @@ RSpec.describe "Bookings", type: :request do
       expect(response.body).to include("same route")
       expect(booking.reload.status).to eq("confirmed")
     end
+
+    describe "fare difference disclosure on the target-trip picker" do
+      it "shows 'No fare difference' when the target trip costs the same" do
+        trip = create(:trip, operator: operator, from_city: "Pune", to_city: "Mumbai", price: 500, seats_count: 5)
+        create(:trip, operator: operator, from_city: "Pune", to_city: "Mumbai", price: 500,
+                      travel_date: 3.days.from_now.to_date, departure_time: 3.days.from_now.change(hour: 9),
+                      arrival_time: 3.days.from_now.change(hour: 13), seats_count: 5)
+        booking = confirm_booking(user, trip, 1)
+        login(user)
+
+        get reschedule_booking_path(booking)
+
+        expect(response.body).to include("No fare difference")
+      end
+
+      it "warns that the difference is not refunded when the target trip is cheaper" do
+        trip = create(:trip, operator: operator, from_city: "Pune", to_city: "Mumbai", price: 500, seats_count: 5)
+        create(:trip, operator: operator, from_city: "Pune", to_city: "Mumbai", price: 450,
+                      travel_date: 3.days.from_now.to_date, departure_time: 3.days.from_now.change(hour: 9),
+                      arrival_time: 3.days.from_now.change(hour: 13), seats_count: 5)
+        booking = confirm_booking(user, trip, 1) # total = 500
+        login(user)
+
+        get reschedule_booking_path(booking)
+
+        expect(response.body).to include("50")
+        expect(response.body).to include("will not be refunded")
+      end
+
+      it "warns that additional payment is required when the target trip is more expensive" do
+        trip = create(:trip, operator: operator, from_city: "Pune", to_city: "Mumbai", price: 500, seats_count: 5)
+        create(:trip, operator: operator, from_city: "Pune", to_city: "Mumbai", price: 700,
+                      travel_date: 3.days.from_now.to_date, departure_time: 3.days.from_now.change(hour: 9),
+                      arrival_time: 3.days.from_now.change(hour: 13), seats_count: 5)
+        booking = confirm_booking(user, trip, 1) # total = 500
+
+        login(user)
+
+        get reschedule_booking_path(booking)
+
+        expect(response.body).to include("200")
+        expect(response.body).to include("pay")
+        expect(response.body).to include("outside the scope")
+      end
+    end
   end
 
   describe "cancellation via HTTP" do

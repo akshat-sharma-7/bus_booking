@@ -122,4 +122,30 @@ RSpec.describe TripSearchService do
   ensure
     Rails.cache = ActiveSupport::Cache::NullStore.new
   end
+
+  it "reuses the cache for a repeated, equivalent search instead of re-querying" do
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+    params = { from_city: "Pune", to_city: "Mumbai" }
+
+    described_class.new(params).call
+    # A second, separately-constructed service with identical params must hit
+    # the cache for the trip-id list — `matching_trips` (the DB query) should
+    # not run again.
+    expect_any_instance_of(described_class).not_to receive(:matching_trips)
+    described_class.new(params).call
+  ensure
+    Rails.cache = ActiveSupport::Cache::NullStore.new
+  end
+
+  it "gives different search parameters different cache keys" do
+    key_a = described_class.new(from_city: "Pune", to_city: "Mumbai").send(:cache_key)
+    key_b = described_class.new(from_city: "Delhi", to_city: "Jaipur").send(:cache_key)
+    key_c = described_class.new(from_city: "Pune", to_city: "Mumbai", min_rating: "4.0").send(:cache_key)
+    key_d = described_class.new(from_city: "Pune", to_city: "Mumbai", bus_type: "ac_seater").send(:cache_key)
+
+    expect([key_a, key_b, key_c, key_d].uniq.size).to eq(4)
+    # And identical params still produce the identical key (stable, not
+    # randomized per-instance).
+    expect(described_class.new(from_city: "Pune", to_city: "Mumbai").send(:cache_key)).to eq(key_a)
+  end
 end

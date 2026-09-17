@@ -45,15 +45,11 @@ module BusBooking
     # These settings can be overridden in specific environments using the files
     # in config/environments, which are processed later.
     #
-    # All routes/prices/operators in this app are India-based (₹, Indian
-    # cities). Without this, Rails defaults Time.zone to UTC while real users
-    # and the browser's own "today" are IST (UTC+5:30) — for roughly 5.5
-    # hours every day (whenever IST has already crossed midnight but UTC
-    # hasn't), the server's Date.current is a day behind the browser's, so
-    # the "Today"/"Tomorrow" quick-pick buttons on the search page disagree
-    # with what the server actually searches for. Stored timestamps are
-    # unaffected (ActiveRecord always persists UTC internally regardless of
-    # this setting) — this only fixes which calendar day "today" resolves to.
+    # This app is India-only (₹, Indian cities). Without this, Rails defaults
+    # Time.zone to UTC, so Date.current disagrees with the browser's own IST
+    # "today" for part of each day — breaks the Today/Tomorrow search
+    # shortcuts. Stored timestamps are unaffected (ActiveRecord persists UTC
+    # regardless); this only changes which calendar day "today" resolves to.
     config.time_zone = "Asia/Kolkata"
     # config.eager_load_paths << Rails.root.join("extras")
   end

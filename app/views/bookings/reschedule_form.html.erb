@@ -16,21 +16,54 @@
         No other <%= @booking.trip.operator.name %> trips on this route are scheduled right now.
       </div>
     <% else %>
+      <% seat_count = @booking.booking_seats.size %>
+      <% original_total = @booking.total_price %>
+
       <%= form_with url: reschedule_booking_path(@booking), method: :post, class: "space-y-2" do %>
         <% @target_trips.each do |trip| %>
-          <label class="flex items-center justify-between gap-3 border border-gray-200 rounded-md px-4 py-3 cursor-pointer hover:border-blue-400 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50">
-            <span class="flex items-center gap-3">
-              <input type="radio" name="trip_id" value="<%= trip.id %>" required class="text-blue-600">
-              <span>
-                <span class="block text-sm font-medium"><%= trip.travel_date.strftime("%d %b %Y") %>, <%= trip.departure_time.strftime("%H:%M") %></span>
-                <span class="block text-xs text-gray-500"><%= trip.bus_type.titleize %> &middot; <%= trip.available_seats_count %> seats left</span>
+          <% target_total = trip.price * seat_count %>
+          <% difference = target_total - original_total %>
+
+          <label class="block border border-gray-200 rounded-md px-4 py-3 cursor-pointer hover:border-blue-400 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50">
+            <span class="flex items-center justify-between gap-3">
+              <span class="flex items-center gap-3">
+                <input type="radio" name="trip_id" value="<%= trip.id %>" required class="text-blue-600">
+                <span>
+                  <span class="block text-sm font-medium"><%= trip.travel_date.strftime("%d %b %Y") %>, <%= trip.departure_time.strftime("%H:%M") %></span>
+                  <span class="block text-xs text-gray-500"><%= trip.bus_type.titleize %> &middot; <%= trip.available_seats_count %> seats left</span>
+                </span>
               </span>
+              <span class="text-sm font-semibold">&#8377;<%= number_with_precision(target_total, precision: 0) %></span>
             </span>
-            <span class="text-sm font-semibold">&#8377;<%= number_with_precision(trip.price, precision: 0) %></span>
+
+            <%# Fare difference vs. the original booking — shown up front, before
+                the user picks anything, per "the user should explicitly continue
+                after seeing this message." No payment/refund is actually
+                processed anywhere in this app; this is disclosure only. %>
+            <span class="block mt-2 pt-2 border-t border-gray-100 text-xs">
+              <% if difference.zero? %>
+                <span class="text-gray-500">No fare difference.</span>
+              <% elsif difference.negative? %>
+                <span class="text-amber-700">
+                  This trip costs &#8377;<%= number_with_precision(difference.abs, precision: 0) %> less.
+                  This amount will not be refunded.
+                </span>
+              <% else %>
+                <span class="text-red-700">
+                  This trip costs &#8377;<%= number_with_precision(difference, precision: 0) %> more.
+                  You will need to pay &#8377;<%= number_with_precision(difference, precision: 0) %> to continue rescheduling.
+                </span>
+              <% end %>
+            </span>
           </label>
         <% end %>
 
-        <%= submit_tag "Confirm Reschedule", class: "w-full mt-4 rounded-md px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer" %>
+        <p class="text-xs text-gray-400 mt-2">
+          Actual payment collection and refunds are outside the scope of this application — the amounts above are calculated for your information only.
+        </p>
+
+        <%= submit_tag "Confirm Reschedule", class: "w-full mt-2 rounded-md px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer",
+              data: { turbo_confirm: "Confirm reschedule? Please review the fare difference shown above before continuing." } %>
       <% end %>
     <% end %>
   </div>
