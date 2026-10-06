@@ -8,7 +8,7 @@ gem "rails", "~> 8.0.5"
 # and to serve Tailwind's compiled CSS output (app/assets/builds).
 gem "propshaft"
 
-gem "pg", "~> 1.5"
+gem "pg", "~> 1.7"
 gem "puma", ">= 5.0"
 gem "importmap-rails"
 gem "turbo-rails"
