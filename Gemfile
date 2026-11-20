@@ -28,7 +28,7 @@ gem "redis", "~> 5.0"
 # the "seats never become available after 5 minutes" bug. Sidekiq's own
 # Gemfile only requires connection_pool >= 2.3.0, so pinning to the last 2.x
 # release resolves it without needing a Sidekiq upgrade.
-gem "connection_pool", "~> 2.5"
+gem "connection_pool", "~> 3.0"
 
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data", platforms: %i[ windows jruby ]
